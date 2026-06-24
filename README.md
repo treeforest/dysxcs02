@@ -38,7 +38,21 @@ import "github.com/treeforest/dysxcs02/sdf"
 
 ```bash
 cp testdata/cacipher.ini .
+
+# 基础：设备信息 + 随机数
 go run ./examples/basic
+
+# ECDSA：索引 1 内部签名 → 导出公钥 → 外部验签 + secp256k1 判定
+go run ./examples/ecdsa
+
+# EDDSA：索引 1 内部签名 → 导出公钥 → 外部验签 + Ed25519 判定
+go run ./examples/eddsa
+```
+
+`examples/ecdsa` 与 `examples/eddsa` 依赖 `libsdf.so` 导出 `SDF_ExportPublicKey_ECDSA` / `SDF_ExportPublicKey_EDDSA`。部署前请确认：
+
+```bash
+nm -D lib/libsdf.so | grep -E 'ExportPublicKey_(ECDSA|EDDSA)'
 ```
 
 ## 版本与兼容性

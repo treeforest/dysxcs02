@@ -5,10 +5,7 @@ package sdf
 import (
 	"bytes"
 	"testing"
-	"unsafe"
 )
-
-import "C"
 
 func TestECCPublicKeyRoundTrip(t *testing.T) {
 	orig := ECCPublicKey{
@@ -16,8 +13,8 @@ func TestECCPublicKeyRoundTrip(t *testing.T) {
 		X:    bytes.Repeat([]byte{0x01}, 32),
 		Y:    bytes.Repeat([]byte{0x02}, 32),
 	}
-	c := eccPublicKeyToC(&orig)
-	defer C.free(unsafe.Pointer(c))
+	c, free := eccPublicKeyAlloc(&orig)
+	defer free()
 	got := eccPublicKeyFromC(c)
 	if got.Bits != orig.Bits {
 		t.Fatalf("bits = %d, want %d", got.Bits, orig.Bits)
@@ -49,13 +46,13 @@ func TestRSAPublicKeyRoundTrip(t *testing.T) {
 		M:    bytes.Repeat([]byte{0x11}, 256),
 		E:    []byte{0x01, 0x00, 0x01},
 	}
-	c := rsaPublicKeyToC(&orig)
-	defer C.free(unsafe.Pointer(c))
+	c, free := rsaPublicKeyAlloc(&orig)
+	defer free()
 	got := rsaPublicKeyFromC(c)
 	if got.Bits != orig.Bits {
 		t.Fatalf("bits = %d, want %d", got.Bits, orig.Bits)
 	}
-	if !bytes.Equal(got.M, orig.M) || !bytes.Equal(got.E, orig.E) {
+	if !bytes.Equal(got.M, orig.M) || !bytes.Equal(trimZeros(got.E), orig.E) {
 		t.Fatalf("key material mismatch")
 	}
 }
@@ -78,10 +75,7 @@ func TestSM9CipherRoundTrip(t *testing.T) {
 }
 
 func TestDeviceInfoFromC(t *testing.T) {
-	var c C.DEVICEINFO
-	copy(c.DeviceName[:], []byte("TestDevice\x00"))
-	c.DeviceVersion = 0x01020304
-	info := deviceInfoFromC(&c)
+	info := deviceInfoFromTestFields("TestDevice", 0x01020304)
 	if info.DeviceVersion != 0x01020304 {
 		t.Fatalf("version = %#x", info.DeviceVersion)
 	}
