@@ -111,6 +111,24 @@ func copyFixed(dst unsafe.Pointer, dstLen int, src []byte) {
 	C.memcpy(dst, unsafe.Pointer(&src[0]), C.size_t(n))
 }
 
+// copyFixedRightAligned 将 src 右对齐写入固定长度 C 缓冲区（密码机大端坐标/密钥格式）。
+func copyFixedRightAligned(dst unsafe.Pointer, dstLen int, src []byte) {
+	if dst == nil || dstLen <= 0 {
+		return
+	}
+	C.memset(dst, 0, C.size_t(dstLen))
+	if len(src) == 0 {
+		return
+	}
+	n := len(src)
+	if n > dstLen {
+		src = src[len(src)-dstLen:]
+		n = dstLen
+	}
+	offset := dstLen - n
+	C.memcpy(unsafe.Pointer(uintptr(dst)+uintptr(offset)), unsafe.Pointer(&src[0]), C.size_t(n))
+}
+
 func effectiveLen(bits uint32, maxLen int) int {
 	n := int((bits + 7) / 8)
 	if n > maxLen {
@@ -128,4 +146,12 @@ func trimZeros(b []byte) []byte {
 		i--
 	}
 	return b[:i]
+}
+
+func trimLeadingZeros(b []byte) []byte {
+	i := 0
+	for i < len(b) && b[i] == 0 {
+		i++
+	}
+	return b[i:]
 }

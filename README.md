@@ -32,6 +32,8 @@ import "github.com/treeforest/dysxcs02/sdf"
 
 - [实现纲领](docs/implementation-plan.md)
 - [API 清单与实现状态](docs/api-inventory.md)
+- [HSM 代理服务方案简介](docs/hsm-proxy-overview.md)
+- [HSM Proxy 方案 V4](docs/hsm-proxy-plan-v4.md)
 - [厂商接口说明 PDF](docs/大有数信服务器密码机DYSX-CS02接口文档(扩展接口版).pdf)
 
 ## 示例
@@ -77,5 +79,5 @@ go test ./sdf/ -run 'TestErr|TestRV|TestECC|TestRSA|TestSM9|TestDeviceInfo' -cou
 
 # 集成测试（需要 cacipher.ini 与密码机/模拟库）
 cp testdata/cacipher.ini .
-go test ./sdf/ -tags=integration -count=1
+go test -v ./sdf/ -tags=integration -count=1
 ```

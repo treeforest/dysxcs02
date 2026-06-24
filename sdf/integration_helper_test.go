@@ -69,5 +69,5 @@ func isSDFError(err error, code RV) bool {
 }
 
 func hasECDSAPublicKeyMaterial(pub *ECCPublicKeyECDSA) bool {
-	return len(trimZeros(pub.X)) > 0 || len(trimZeros(pub.Y)) > 0
+	return len(trimLeadingZeros(pub.X)) > 0 || len(trimLeadingZeros(pub.Y)) > 0
 }

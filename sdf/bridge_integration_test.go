@@ -19,7 +19,7 @@ func TestECCPublicKeyRoundTrip(t *testing.T) {
 	if got.Bits != orig.Bits {
 		t.Fatalf("bits = %d, want %d", got.Bits, orig.Bits)
 	}
-	if !bytes.Equal(got.X, orig.X) || !bytes.Equal(got.Y, orig.Y) {
+	if !bytes.Equal(trimLeadingZeros(got.X), orig.X) || !bytes.Equal(trimLeadingZeros(got.Y), orig.Y) {
 		t.Fatalf("coordinate mismatch: x=%x y=%x", got.X, got.Y)
 	}
 }

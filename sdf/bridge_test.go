@@ -30,6 +30,15 @@ func TestCopyFixed(t *testing.T) {
 	}
 }
 
+func TestCopyFixedRightAligned(t *testing.T) {
+	dst := make([]byte, 8)
+	copyFixedRightAligned(unsafe.Pointer(&dst[0]), len(dst), []byte{1, 2, 3})
+	want := []byte{0, 0, 0, 0, 0, 1, 2, 3}
+	if !bytes.Equal(dst, want) {
+		t.Fatalf("copyFixedRightAligned = %v, want %v", dst, want)
+	}
+}
+
 func TestECCPublicKeyFields(t *testing.T) {
 	pk := ECCPublicKey{
 		Bits: 256,

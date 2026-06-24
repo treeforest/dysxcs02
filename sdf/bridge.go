@@ -98,34 +98,32 @@ func rsaPrivateKeyToC(g *RSAPrivateKey) *C.RSArefPrivateKey {
 }
 
 func eccPublicKeyFromC(c *C.ECCrefPublicKey) ECCPublicKey {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLen)
 	return ECCPublicKey{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), C.int(n)),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), C.int(n)),
+		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), ECCrefMaxLen),
+		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), ECCrefMaxLen),
 	}
 }
 
 func eccPublicKeyToC(g *ECCPublicKey) *C.ECCrefPublicKey {
 	c := (*C.ECCrefPublicKey)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPublicKey{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.x[0]), ECCrefMaxLen, g.X)
-	copyFixed(unsafe.Pointer(&c.y[0]), ECCrefMaxLen, g.Y)
+	copyFixedRightAligned(unsafe.Pointer(&c.x[0]), ECCrefMaxLen, g.X)
+	copyFixedRightAligned(unsafe.Pointer(&c.y[0]), ECCrefMaxLen, g.Y)
 	return c
 }
 
 func eccPrivateKeyFromC(c *C.ECCrefPrivateKey) ECCPrivateKey {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLen)
 	return ECCPrivateKey{
 		Bits: uint32(c.bits),
-		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), C.int(n)),
+		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), ECCrefMaxLen),
 	}
 }
 
 func eccPrivateKeyToC(g *ECCPrivateKey) *C.ECCrefPrivateKey {
 	c := (*C.ECCrefPrivateKey)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPrivateKey{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.K[0]), ECCrefMaxLen, g.K)
+	copyFixedRightAligned(unsafe.Pointer(&c.K[0]), ECCrefMaxLen, g.K)
 	return c
 }
 
@@ -176,34 +174,32 @@ func eccCipherFromC(c *C.ECCCipher) ECCCipher {
 }
 
 func eccPublicKeyECDSAFromC(c *C.ECCrefPublicKey_ECDSA) ECCPublicKeyECDSA {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLenECDSA)
 	return ECCPublicKeyECDSA{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), C.int(n)),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), C.int(n)),
+		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), ECCrefMaxLenECDSA),
+		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), ECCrefMaxLenECDSA),
 	}
 }
 
 func eccPublicKeyECDSAToC(g *ECCPublicKeyECDSA) *C.ECCrefPublicKey_ECDSA {
 	c := (*C.ECCrefPublicKey_ECDSA)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPublicKey_ECDSA{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.x[0]), ECCrefMaxLenECDSA, g.X)
-	copyFixed(unsafe.Pointer(&c.y[0]), ECCrefMaxLenECDSA, g.Y)
+	copyFixedRightAligned(unsafe.Pointer(&c.x[0]), ECCrefMaxLenECDSA, g.X)
+	copyFixedRightAligned(unsafe.Pointer(&c.y[0]), ECCrefMaxLenECDSA, g.Y)
 	return c
 }
 
 func eccPrivateKeyECDSAFromC(c *C.ECCrefPrivateKey_ECDSA) ECCPrivateKeyECDSA {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLenECDSA)
 	return ECCPrivateKeyECDSA{
 		Bits: uint32(c.bits),
-		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), C.int(n)),
+		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), ECCrefMaxLenECDSA),
 	}
 }
 
 func eccPrivateKeyECDSAToC(g *ECCPrivateKeyECDSA) *C.ECCrefPrivateKey_ECDSA {
 	c := (*C.ECCrefPrivateKey_ECDSA)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPrivateKey_ECDSA{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.K[0]), ECCrefMaxLenECDSA, g.K)
+	copyFixedRightAligned(unsafe.Pointer(&c.K[0]), ECCrefMaxLenECDSA, g.K)
 	return c
 }
 
@@ -222,32 +218,30 @@ func eccSignatureECDSAToC(g *ECCSignatureECDSA) *C.ECCSignature_ECDSA {
 }
 
 func eccPublicKeyEDDSAFromC(c *C.ECCrefPublicKey_EDDSA) ECCPublicKeyEDDSA {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLenEDDSA)
 	return ECCPublicKeyEDDSA{
 		Bits: uint32(c.bits),
-		Pub:  C.GoBytes(unsafe.Pointer(&c.pub[0]), C.int(n)),
+		Pub:  C.GoBytes(unsafe.Pointer(&c.pub[0]), ECCrefMaxLenEDDSA),
 	}
 }
 
 func eccPublicKeyEDDSAToC(g *ECCPublicKeyEDDSA) *C.ECCrefPublicKey_EDDSA {
 	c := (*C.ECCrefPublicKey_EDDSA)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPublicKey_EDDSA{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.pub[0]), ECCrefMaxLenEDDSA, g.Pub)
+	copyFixedRightAligned(unsafe.Pointer(&c.pub[0]), ECCrefMaxLenEDDSA, g.Pub)
 	return c
 }
 
 func eccPrivateKeyEDDSAFromC(c *C.ECCrefPrivateKey_EDDSA) ECCPrivateKeyEDDSA {
-	n := effectiveLen(uint32(c.bits), ECCrefMaxLenEDDSA)
 	return ECCPrivateKeyEDDSA{
 		Bits: uint32(c.bits),
-		Pri:  C.GoBytes(unsafe.Pointer(&c.pri[0]), C.int(n)),
+		Pri:  C.GoBytes(unsafe.Pointer(&c.pri[0]), ECCrefMaxLenEDDSA),
 	}
 }
 
 func eccPrivateKeyEDDSAToC(g *ECCPrivateKeyEDDSA) *C.ECCrefPrivateKey_EDDSA {
 	c := (*C.ECCrefPrivateKey_EDDSA)(C.calloc(1, C.size_t(unsafe.Sizeof(C.ECCrefPrivateKey_EDDSA{}))))
 	c.bits = C.uint(g.Bits)
-	copyFixed(unsafe.Pointer(&c.pri[0]), ECCrefMaxLenEDDSA, g.Pri)
+	copyFixedRightAligned(unsafe.Pointer(&c.pri[0]), ECCrefMaxLenEDDSA, g.Pri)
 	return c
 }
 

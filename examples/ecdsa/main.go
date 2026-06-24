@@ -48,6 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("内部 ECDSA 签名失败: %v", err)
 	}
+	fmt.Printf("签名:\n  R:%x\n  S:%x\n", sig.R, sig.S)
 
 	pub, err := sess.ExportPublicKeyECDSA(keyIndex)
 	if err != nil {

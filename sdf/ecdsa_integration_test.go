@@ -122,7 +122,7 @@ func TestExportPublicKeyECDSA(t *testing.T) {
 	if pub.Bits == 0 {
 		t.Fatal("zero key bits")
 	}
-	if len(trimZeros(pub.X)) == 0 || len(trimZeros(pub.Y)) == 0 {
+	if len(trimLeadingZeros(pub.X)) == 0 || len(trimLeadingZeros(pub.Y)) == 0 {
 		t.Fatal("empty exported public key")
 	}
 }
