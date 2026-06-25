@@ -1,53 +1,92 @@
 # dysxcs02
 
-基于 CGO 封装的密码机 SDF 接口 Go 绑定库，对应 [GM/T 0018-2012](https://www.gmbz.org.cn/) 标准的 `libsdf.h`。
+[![Go Reference](https://pkg.go.dev/badge/github.com/treeforest/dysxcs02/sdf.svg)](https://pkg.go.dev/github.com/treeforest/dysxcs02/sdf)
+[![Go Version](https://img.shields.io/badge/go-1.25+-00ADD8?logo=go)](https://go.dev/)
 
-## 目录结构
+基于 CGO 的密码机 SDF 接口 Go 绑定库，对应 [GM/T 0018-2012](https://www.gmbz.org.cn/) 标准及 `include/libsdf.h` 头文件定义。
 
+## 特性
+
+- 以 `libsdf.h` 为 API 契约，封装 `libsdf.so` 导出的 SDF 函数
+- 惯用 Go 风格：`Device`、`Session`、`KeyHandle` 资源类型，方法返回 `(result, error)`
+- 覆盖对称/非对称加解密、签名验签、哈希、文件操作及 ECDSA / EdDSA / SM9 等扩展接口
+- 提供基础用法与 ECDSA / EdDSA 示例程序
+
+## 环境要求
+
+| 项目 | 说明 |
+|------|------|
+| Go | 1.25 及以上 |
+| 平台 | Linux x86_64（WSL2 可用） |
+| CGO | 必须启用 |
+| 动态库 | 厂商提供的 `libsdf.so`，需与 `include/libsdf.h` 版本匹配 |
+| 配置文件 | `cacipher.ini`（见 `testdata/cacipher.ini` 模板） |
+
+## 安装
+
+```bash
+go get github.com/treeforest/dysxcs02/sdf
 ```
-include/libsdf.h    # C 头文件（API 契约）
-lib/libsdf.so       # 密码机动态库（不入 git，运行时放置）
-sdf/                # Go 公开包
-examples/           # 使用示例
-testdata/           # 测试配置模板
-```
 
-## 依赖
-
-1. 将厂商提供的 `libsdf.so` 放入 `lib/` 目录
-2. 将 `testdata/cacipher.ini` 复制到程序工作目录（或按厂商要求配置路径）
-3. 确保运行时可加载动态库：
+将厂商提供的 `libsdf.so` 放入项目 `lib/` 目录，并确保运行时可加载：
 
 ```bash
 export LD_LIBRARY_PATH=/path/to/dysxcs02/lib:$LD_LIBRARY_PATH
 ```
 
-## 使用
+## 快速开始
 
 ```go
-import "github.com/treeforest/dysxcs02/sdf"
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/treeforest/dysxcs02/sdf"
+)
+
+func main() {
+    dev, err := sdf.OpenDevice()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer dev.Close()
+
+    sess, err := dev.OpenSession()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer sess.Close()
+
+    info, err := sess.GetDeviceInfo()
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Issuer: %s\n", info.IssuerName)
+
+    rand, err := sess.GenerateRandom(16)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Random: %x\n", rand)
+}
 ```
 
-## 文档
-
-- [实现纲领](docs/implementation-plan.md)
-- [API 清单与实现状态](docs/api-inventory.md)
-- [HSM 代理服务方案简介](docs/hsm-proxy-overview.md)
-- [HSM Proxy 方案 V4](docs/hsm-proxy-plan-v4.md)
-- [厂商接口说明 PDF](docs/大有数信服务器密码机DYSX-CS02接口文档(扩展接口版).pdf)
-
 ## 示例
+
+在项目根目录执行（需 `cacipher.ini` 与可达密码机）：
 
 ```bash
 cp testdata/cacipher.ini .
 
-# 基础：设备信息 + 随机数
+# 设备信息、随机数、ECDSA 密钥探测
 go run ./examples/basic
 
-# ECDSA：索引 1 内部签名 → 导出公钥 → 外部验签 + secp256k1 判定
+# ECDSA：内部签名 → 导出公钥 → 外部验签
 go run ./examples/ecdsa
 
-# EDDSA：索引 1 内部签名 → 导出公钥 → 外部验签 + Ed25519 判定
+# EdDSA：内部签名 → 导出公钥 → 外部验签
 go run ./examples/eddsa
 ```
 
@@ -57,21 +96,31 @@ go run ./examples/eddsa
 nm -D lib/libsdf.so | grep -E 'ExportPublicKey_(ECDSA|EDDSA)'
 ```
 
-## 版本与兼容性
+更多说明见 [examples/README.md](examples/README.md)。
+
+## 项目结构
+
+```
+include/libsdf.h    # C 头文件（API 契约）
+lib/libsdf.so       # 密码机动态库（不入 git，运行时放置）
+sdf/                # Go 公开包
+examples/           # 使用示例
+testdata/           # 测试配置模板
+```
+
+## 兼容性说明
 
 | 项目 | 说明 |
 |------|------|
-| Go 版本 | 1.25+ |
 | 标准 | GM/T 0018-2012（`libsdf.h`） |
 | 头文件 | `include/libsdf.h`（`MAXCIPHER=16`） |
-| 动态库 | `lib/libsdf.so`（厂商提供，需与头文件版本匹配） |
-| 平台 | Linux x86_64（WSL2 可用） |
-| CGO | 必须启用；链接 `-lsdf`，运行时需 `LD_LIBRARY_PATH` 包含 `lib/` |
-| 链接选项 | `-Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-all`（头文件声明但当前 `libsdf.so` 未导出的符号可在编译期通过，运行期调用将失败） |
+| 链接选项 | `-Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-all` |
 
-本绑定以头文件为 API 契约。若厂商库版本较旧、缺少部分扩展函数（如 SM9、`SDFE_*`），调用时将返回 `SDR_NOTSUPPORT` 或链接错误。
+本绑定以头文件为 API 契约。若厂商库版本较旧、缺少部分扩展函数（如 SM9、`SDFE_*`），调用时将返回 `SDR_NOTSUPPORT` 或在链接阶段报错。头文件声明但当前 `libsdf.so` 未导出的符号可在编译期通过，运行期调用将失败。
 
-### 运行测试
+> **并发提示：** `Session` 及依赖会话状态的哈希流（如 `HashInit`）非线程安全，并发场景请为每个 goroutine 使用独立 `Session`。
+
+## 测试
 
 ```bash
 # 单元测试（无需硬件）
@@ -81,3 +130,7 @@ go test ./sdf/ -run 'TestErr|TestRV|TestECC|TestRSA|TestSM9|TestDeviceInfo' -cou
 cp testdata/cacipher.ini .
 go test -v ./sdf/ -tags=integration -count=1
 ```
+
+## 相关标准
+
+- [GM/T 0018-2012 密码设备应用接口规范](https://www.gmbz.org.cn/)
