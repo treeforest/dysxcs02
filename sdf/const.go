@@ -96,7 +96,8 @@ const (
 	SGDZUCEIA3 = 0x00000802
 )
 
-// 非对称算法
+// 非对称算法（名称与 SDF 规范保持一致）。
+//revive:disable:var-naming
 const (
 	SGDRSA     = 0x00010000
 	SGDRSASign = 0x00010100
@@ -121,6 +122,7 @@ const (
 	SGDDSA  = 0x00060000
 	SGDDSA_1 = 0x00060200
 )
+//revive:enable:var-naming
 
 // 哈希算法
 const (

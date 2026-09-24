@@ -1,3 +1,4 @@
+// Package main 演示设备打开、随机数生成与 ECDSA 签名验签。
 package main
 
 import (
@@ -65,40 +66,52 @@ func ecdsaKeyExists(err error) bool {
 }
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	if _, err := os.Stat("cacipher.ini"); err != nil {
-		fmt.Fprintln(os.Stderr, "请将 testdata/cacipher.ini 复制到当前工作目录")
-		os.Exit(1)
+		return fmt.Errorf("请将 testdata/cacipher.ini 复制到当前工作目录")
 	}
 
 	dev, err := sdf.OpenDeviceWithConfig("cacipher.ini", nil)
 	if err != nil {
-		log.Fatalf("打开设备失败: %v", err)
+		return fmt.Errorf("打开设备失败: %w", err)
 	}
-	defer dev.Close()
+	defer func() {
+		if err := dev.Close(); err != nil {
+			log.Printf("关闭设备: %v", err)
+		}
+	}()
 
 	sess, err := dev.OpenSession()
 	if err != nil {
-		log.Fatalf("打开会话失败: %v", err)
+		return fmt.Errorf("打开会话失败: %w", err)
 	}
-	defer sess.Close()
+	defer func() {
+		if err := sess.Close(); err != nil {
+			log.Printf("关闭会话: %v", err)
+		}
+	}()
 
 	info, err := sess.GetDeviceInfo()
 	if err != nil {
-		log.Fatalf("获取设备信息失败: %v", err)
+		return fmt.Errorf("获取设备信息失败: %w", err)
 	}
 	fmt.Printf("设备名称: %s\n", strings.TrimRight(string(info.DeviceName[:]), "\x00"))
 	fmt.Printf("设备版本: %d\n", info.DeviceVersion)
 
 	rand, err := sess.GenerateRandom(16)
 	if err != nil {
-		log.Fatalf("生成随机数失败: %v", err)
+		return fmt.Errorf("生成随机数失败: %w", err)
 	}
 	fmt.Printf("随机数 (16B): %x\n", rand)
 
 	message := []byte("dysxcs02 ecdsa sign demo")
 	digest := sha256.Sum256(message)
 
-	// --- ECDSA 密钥探测与列举 ---
 	keys := listECDSAKeys(sess, digest[:])
 	fmt.Printf("\nECDSA 内部密钥数量: %d\n", len(keys))
 	for _, k := range keys {
@@ -110,60 +123,70 @@ func main() {
 	}
 
 	var sig sdf.ECCSignatureECDSA
-
 	if len(keys) > 0 {
-		// 使用第一个可用内部 ECDSA 密钥签名（输入为消息摘要）
-		key := keys[0]
-		fmt.Printf("\n使用内部 ECDSA 密钥索引 %d 签名...\n", key.Index)
-
-		var err error
-		sig, err = sess.InternalSignECDSA(key.Index, sdf.SGDECDSA_1, digest[:])
-		if err != nil {
-			log.Fatalf("内部 ECDSA 签名失败: %v", err)
-		}
-		fmt.Printf("签名 r: %x\n", sig.R)
-		fmt.Printf("签名 s: %x\n", sig.S)
-
-		if err := sess.InternalVerifyECDSA(key.Index, sdf.SGDECDSA_1, digest[:], &sig); err != nil {
-			log.Fatalf("内部 ECDSA 验签失败: %v", err)
-		}
-		fmt.Println("内部 ECDSA 验签: 通过")
+		sig = runInternalECDSADemo(sess, keys, digest[:])
 	} else {
-		// 无内部密钥时，演示外部密钥生成、签名与验签
-		fmt.Println("\n未检测到内部 ECDSA 密钥，使用外部密钥演示...")
-
-		pub, priv, err := sess.GenerateKeyPairECDSA(sdf.SGDECDSA, 256)
-		if err != nil {
-			log.Fatalf("生成 ECDSA 密钥对失败: %v", err)
-		}
-		fmt.Printf("已生成外部 ECDSA 密钥对，模长=%d bits\n", pub.Bits)
-
-		sig, err = sess.ExternalSignECDSA(sdf.SGDECDSA_1, &priv, digest[:])
-		if err != nil {
-			log.Fatalf("外部 ECDSA 签名失败: %v", err)
-		}
-		fmt.Printf("签名 r: %x\n", sig.R)
-		fmt.Printf("签名 s: %x\n", sig.S)
-
-		if err := sess.ExternalVerifyECDSA(sdf.SGDECDSA_1, &pub, digest[:], &sig); err != nil {
-			log.Fatalf("外部 ECDSA 验签失败: %v", err)
-		}
-		fmt.Println("外部 ECDSA 验签: 通过")
+		sig = runExternalECDSADemo(sess, digest[:])
 	}
 
-	// 篡改摘要后验签应失败
+	verifyBadDigest(sess, keys, digest, sig)
+	return nil
+}
+
+func runInternalECDSADemo(sess *sdf.Session, keys []ecdsaKeyInfo, digest []byte) sdf.ECCSignatureECDSA {
+	key := keys[0]
+	fmt.Printf("\n使用内部 ECDSA 密钥索引 %d 签名...\n", key.Index)
+
+	sig, err := sess.InternalSignECDSA(key.Index, sdf.SGDECDSA_1, digest)
+	if err != nil {
+		log.Fatalf("内部 ECDSA 签名失败: %v", err)
+	}
+	fmt.Printf("签名 r: %x\n", sig.R)
+	fmt.Printf("签名 s: %x\n", sig.S)
+
+	if err := sess.InternalVerifyECDSA(key.Index, sdf.SGDECDSA_1, digest, &sig); err != nil {
+		log.Fatalf("内部 ECDSA 验签失败: %v", err)
+	}
+	fmt.Println("内部 ECDSA 验签: 通过")
+	return sig
+}
+
+func runExternalECDSADemo(sess *sdf.Session, digest []byte) sdf.ECCSignatureECDSA {
+	fmt.Println("\n未检测到内部 ECDSA 密钥，使用外部密钥演示...")
+
+	pub, priv, err := sess.GenerateKeyPairECDSA(sdf.SGDECDSA, 256)
+	if err != nil {
+		log.Fatalf("生成 ECDSA 密钥对失败: %v", err)
+	}
+	fmt.Printf("已生成外部 ECDSA 密钥对，模长=%d bits\n", pub.Bits)
+
+	sig, err := sess.ExternalSignECDSA(sdf.SGDECDSA_1, &priv, digest)
+	if err != nil {
+		log.Fatalf("外部 ECDSA 签名失败: %v", err)
+	}
+	fmt.Printf("签名 r: %x\n", sig.R)
+	fmt.Printf("签名 s: %x\n", sig.S)
+
+	if err := sess.ExternalVerifyECDSA(sdf.SGDECDSA_1, &pub, digest, &sig); err != nil {
+		log.Fatalf("外部 ECDSA 验签失败: %v", err)
+	}
+	fmt.Println("外部 ECDSA 验签: 通过")
+	return sig
+}
+
+func verifyBadDigest(sess *sdf.Session, keys []ecdsaKeyInfo, digest [32]byte, sig sdf.ECCSignatureECDSA) {
+	if len(keys) == 0 {
+		return
+	}
 	badDigest := digest
 	badDigest[0] ^= 0xff
-	verifyKeyIndex := uint32(0)
-	if len(keys) > 0 {
-		verifyKeyIndex = keys[0].Index
-		if err := sess.InternalVerifyECDSA(verifyKeyIndex, sdf.SGDECDSA_1, badDigest[:], &sig); err == nil {
-			log.Println("警告: 错误摘要验签意外通过")
-		} else if isSDFError(err, sdf.RVVerifyErr) {
-			fmt.Println("错误摘要验签: 拒绝（符合预期）")
-		} else {
-			fmt.Printf("错误摘要验签: %v\n", err)
-		}
+	verifyKeyIndex := keys[0].Index
+	if err := sess.InternalVerifyECDSA(verifyKeyIndex, sdf.SGDECDSA_1, badDigest[:], &sig); err == nil {
+		log.Println("警告: 错误摘要验签意外通过")
+	} else if isSDFError(err, sdf.RVVerifyErr) {
+		fmt.Println("错误摘要验签: 拒绝（符合预期）")
+	} else {
+		fmt.Printf("错误摘要验签: %v\n", err)
 	}
 }
 

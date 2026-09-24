@@ -1,8 +1,9 @@
+// Package main 演示 ECDSA 内部签名、公钥导出与验签。
 package main
 
 import (
+	"crypto/ecdh"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -20,22 +21,35 @@ const (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	if _, err := os.Stat("cacipher.ini"); err != nil {
-		fmt.Fprintln(os.Stderr, "请将 cacipher.ini 放在当前工作目录（可复制 testdata/cacipher.ini）")
-		os.Exit(1)
+		return fmt.Errorf("请将 cacipher.ini 放在当前工作目录（可复制 testdata/cacipher.ini）")
 	}
 
 	dev, err := sdf.OpenDeviceWithConfig("cacipher.ini", nil)
 	if err != nil {
-		log.Fatalf("打开设备失败: %v", err)
+		return fmt.Errorf("打开设备失败: %w", err)
 	}
-	defer dev.Close()
+	defer func() {
+		if err := dev.Close(); err != nil {
+			log.Printf("关闭设备: %v", err)
+		}
+	}()
 
 	sess, err := dev.OpenSession()
 	if err != nil {
-		log.Fatalf("打开会话失败: %v", err)
+		return fmt.Errorf("打开会话失败: %w", err)
 	}
-	defer sess.Close()
+	defer func() {
+		if err := sess.Close(); err != nil {
+			log.Printf("关闭会话: %v", err)
+		}
+	}()
 
 	algID := uint32(sdf.SGDECDSA_1)
 	digest := sha256.Sum256([]byte(message))
@@ -46,13 +60,13 @@ func main() {
 
 	sig, err := sess.InternalSignECDSA(keyIndex, algID, digest[:])
 	if err != nil {
-		log.Fatalf("内部 ECDSA 签名失败: %v", err)
+		return fmt.Errorf("内部 ECDSA 签名失败: %w", err)
 	}
 	fmt.Printf("签名:\n  R:%x\n  S:%x\n", sig.R, sig.S)
 
 	pub, err := sess.ExportPublicKeyECDSA(keyIndex)
 	if err != nil {
-		log.Fatalf("导出 ECDSA 公钥失败: %v", err)
+		return fmt.Errorf("导出 ECDSA 公钥失败: %w", err)
 	}
 
 	x, y := pubCoords(&pub)
@@ -64,7 +78,7 @@ func main() {
 	fmt.Printf("曲线判定: %s\n", curve)
 
 	if err := sess.ExternalVerifyECDSA(algID, &pub, digest[:], &sig); err != nil {
-		log.Fatalf("密码机外部验签失败: %v", err)
+		return fmt.Errorf("密码机外部验签失败: %w", err)
 	}
 	fmt.Println("密码机外部验签: 通过")
 
@@ -85,6 +99,7 @@ func main() {
 	} else {
 		fmt.Printf("错误摘要验签: %v\n", err)
 	}
+	return nil
 }
 
 func pubCoords(pub *sdf.ECCPublicKeyECDSA) (*big.Int, *big.Int) {
@@ -101,25 +116,41 @@ func pubCoords(pub *sdf.ECCPublicKeyECDSA) (*big.Int, *big.Int) {
 }
 
 func identifyCurve(x, y *big.Int) string {
-	switch {
-	case secp256k1.S256().IsOnCurve(x, y):
+	if isSecp256k1Point(x, y) {
 		return "secp256k1"
-	case elliptic.P256().IsOnCurve(x, y):
-		return "P-256"
-	default:
-		return "未知曲线"
 	}
+	if isP256Point(x, y) {
+		return "P-256"
+	}
+	return "未知曲线"
+}
+
+func isP256Point(x, y *big.Int) bool {
+	_, err := ecdh.P256().NewPublicKey(serializeUncompressedPoint(x, y))
+	return err == nil
+}
+
+func isSecp256k1Point(x, y *big.Int) bool {
+	_, err := secp256k1.ParsePubKey(serializeUncompressedPoint(x, y))
+	return err == nil
+}
+
+func serializeUncompressedPoint(x, y *big.Int) []byte {
+	out := make([]byte, 65)
+	out[0] = 0x04
+	x.FillBytes(out[1:33])
+	y.FillBytes(out[33:65])
+	return out
 }
 
 func verifyGoECDSAsecp256k1(x, y *big.Int, digest []byte, sig *sdf.ECCSignatureECDSA) bool {
-	pubKey := &ecdsa.PublicKey{
-		Curve: secp256k1.S256(),
-		X:     x,
-		Y:     y,
+	pubKey, err := secp256k1.ParsePubKey(serializeUncompressedPoint(x, y))
+	if err != nil {
+		return false
 	}
 	r := new(big.Int).SetBytes(trimLeadingZeros(sig.R))
 	s := new(big.Int).SetBytes(trimLeadingZeros(sig.S))
-	return ecdsa.Verify(pubKey, digest, r, s)
+	return ecdsa.Verify(pubKey.ToECDSA(), digest, r, s)
 }
 
 func trimLeadingZeros(b []byte) []byte {

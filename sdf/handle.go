@@ -9,18 +9,10 @@ type Device struct {
 	h unsafe.Pointer
 }
 
-func (d *Device) handle() unsafe.Pointer {
-	return d.h
-}
-
 // Session 表示设备会话句柄（SDF_OpenSession）。
 type Session struct {
 	device *Device
 	h      unsafe.Pointer
-}
-
-func (s *Session) handle() unsafe.Pointer {
-	return s.h
 }
 
 // Device 返回会话所属设备。
@@ -34,10 +26,6 @@ type KeyHandle struct {
 	h       unsafe.Pointer
 }
 
-func (k *KeyHandle) handle() unsafe.Pointer {
-	return k.h
-}
-
 // Session 返回密钥句柄所属会话。
 func (k *KeyHandle) Session() *Session {
 	return k.session
@@ -49,10 +37,6 @@ type AgreementHandle struct {
 	h       unsafe.Pointer
 }
 
-func (a *AgreementHandle) handle() unsafe.Pointer {
-	return a.h
-}
-
 // Session 返回协商句柄所属会话。
 func (a *AgreementHandle) Session() *Session {
 	return a.session
@@ -62,10 +46,6 @@ func (a *AgreementHandle) Session() *Session {
 type ECCKeyHandle struct {
 	session *Session
 	h       unsafe.Pointer
-}
-
-func (e *ECCKeyHandle) handle() unsafe.Pointer {
-	return e.h
 }
 
 // Session 返回 ECC 密钥句柄所属会话。

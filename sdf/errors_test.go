@@ -1,6 +1,7 @@
 package sdf
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -15,8 +16,8 @@ func TestErrNonOK(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	e, ok := err.(*Error)
-	if !ok {
+	var e *Error
+	if !errors.As(err, &e) {
 		t.Fatalf("expected *Error, got %T", err)
 	}
 	if e.Code != RVKeyNotExist {

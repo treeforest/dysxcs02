@@ -24,7 +24,7 @@ func TestTrimZeros(t *testing.T) {
 
 func TestCopyFixed(t *testing.T) {
 	dst := make([]byte, 8)
-	copyFixed(unsafe.Pointer(&dst[0]), len(dst), []byte{1, 2, 3})
+	copyFixed(unsafe.Pointer(&dst[0]), len(dst), []byte{1, 2, 3}) // #nosec G103 -- 测试 CGO 辅助函数
 	if !bytes.Equal(dst[:3], []byte{1, 2, 3}) {
 		t.Fatalf("copyFixed failed: %v", dst)
 	}
@@ -32,7 +32,7 @@ func TestCopyFixed(t *testing.T) {
 
 func TestCopyFixedRightAligned(t *testing.T) {
 	dst := make([]byte, 8)
-	copyFixedRightAligned(unsafe.Pointer(&dst[0]), len(dst), []byte{1, 2, 3})
+	copyFixedRightAligned(unsafe.Pointer(&dst[0]), len(dst), []byte{1, 2, 3}) // #nosec G103 -- 测试 CGO 辅助函数
 	want := []byte{0, 0, 0, 0, 0, 1, 2, 3}
 	if !bytes.Equal(dst, want) {
 		t.Fatalf("copyFixedRightAligned = %v, want %v", dst, want)

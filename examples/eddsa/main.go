@@ -1,3 +1,4 @@
+// Package main 演示 EDDSA 内部签名与外部验签。
 package main
 
 import (
@@ -16,22 +17,35 @@ const (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	if _, err := os.Stat("cacipher.ini"); err != nil {
-		fmt.Fprintln(os.Stderr, "请将 cacipher.ini 放在当前工作目录（可复制 testdata/cacipher.ini）")
-		os.Exit(1)
+		return fmt.Errorf("请将 cacipher.ini 放在当前工作目录（可复制 testdata/cacipher.ini）")
 	}
 
 	dev, err := sdf.OpenDeviceWithConfig("cacipher.ini", nil)
 	if err != nil {
-		log.Fatalf("打开设备失败: %v", err)
+		return fmt.Errorf("打开设备失败: %w", err)
 	}
-	defer dev.Close()
+	defer func() {
+		if err := dev.Close(); err != nil {
+			log.Printf("关闭设备: %v", err)
+		}
+	}()
 
 	sess, err := dev.OpenSession()
 	if err != nil {
-		log.Fatalf("打开会话失败: %v", err)
+		return fmt.Errorf("打开会话失败: %w", err)
 	}
-	defer sess.Close()
+	defer func() {
+		if err := sess.Close(); err != nil {
+			log.Printf("关闭会话: %v", err)
+		}
+	}()
 
 	algID := uint32(sdf.SGDEDDSA_1)
 	msg := []byte(message)
@@ -42,7 +56,7 @@ func main() {
 
 	pub, err := sess.ExportPublicKeyEDDSA(keyIndex)
 	if err != nil {
-		log.Fatalf("导出 EDDSA 公钥失败: %v", err)
+		return fmt.Errorf("导出 EDDSA 公钥失败: %w", err)
 	}
 
 	pubBytes := trimLeadingZeros(pub.Pub)
@@ -52,12 +66,12 @@ func main() {
 
 	sig, err := sess.InternalSignEDDSA(keyIndex, algID, msg)
 	if err != nil {
-		log.Fatalf("内部 EDDSA 签名失败: %v", err)
+		return fmt.Errorf("内部 EDDSA 签名失败: %w", err)
 	}
 	fmt.Printf("签名:\n  R:%x\n  S:%x\n", sig.R, sig.S)
 
 	if err := sess.ExternalVerifyEDDSA(algID, &pub, msg, &sig); err != nil {
-		log.Fatalf("密码机外部验签失败: %v", err)
+		return fmt.Errorf("密码机外部验签失败: %w", err)
 	}
 	fmt.Println("密码机外部验签: 通过")
 
@@ -76,6 +90,7 @@ func main() {
 	} else {
 		fmt.Printf("篡改消息验签: %v\n", err)
 	}
+	return nil
 }
 
 func identifyEDDSACurve(pub *sdf.ECCPublicKeyEDDSA) string {

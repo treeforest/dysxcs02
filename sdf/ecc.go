@@ -49,7 +49,9 @@ func (s *Session) GenerateKeyPairECC(algID, keyBits uint32) (ECCPublicKey, ECCPr
 func (s *Session) GenerateKeyWithIPKECC(ipkIndex, keyBits uint32) (ECCCipher, *KeyHandle, error) {
 	var cipher C.ECCCipher
 	var h unsafe.Pointer
-	rv := RV(C.SDF_GenerateKeyWithIPK_ECC(cHandle(s.h), C.uint(ipkIndex), C.uint(keyBits), &cipher, &h))
+	hOut := &h
+	cRv := C.SDF_GenerateKeyWithIPK_ECC(cHandle(s.h), C.uint(ipkIndex), C.uint(keyBits), &cipher, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return ECCCipher{}, nil, err
 	}
@@ -62,7 +64,9 @@ func (s *Session) GenerateKeyWithEPKECC(keyBits, algID uint32, pub *ECCPublicKey
 	defer C.free(unsafe.Pointer(cPub))
 	var cipher C.ECCCipher
 	var h unsafe.Pointer
-	rv := RV(C.SDF_GenerateKeyWithEPK_ECC(cHandle(s.h), C.uint(keyBits), C.uint(algID), cPub, &cipher, &h))
+	hOut := &h
+	cRv := C.SDF_GenerateKeyWithEPK_ECC(cHandle(s.h), C.uint(keyBits), C.uint(algID), cPub, &cipher, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return ECCCipher{}, nil, err
 	}
@@ -74,7 +78,9 @@ func (s *Session) ImportKeyWithISKECC(iskIndex uint32, cipher *ECCCipher) (*KeyH
 	cCipher, free := eccCipherAlloc(cipher)
 	defer free()
 	var h unsafe.Pointer
-	rv := RV(C.SDF_ImportKeyWithISK_ECC(cHandle(s.h), C.uint(iskIndex), cCipher, &h))
+	hOut := &h
+	cRv := C.SDF_ImportKeyWithISK_ECC(cHandle(s.h), C.uint(iskIndex), cCipher, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -89,7 +95,9 @@ func (s *Session) GenerateAgreementDataWithECC(iskIndex, keyBits uint32, sponsor
 	if len(sponsorID) > 0 {
 		id = (*C.uchar)(unsafe.Pointer(&sponsorID[0]))
 	}
-	rv := RV(C.SDF_GenerateAgreementDataWithECC(cHandle(s.h), C.uint(iskIndex), C.uint(keyBits), id, C.uint(len(sponsorID)), &sponsorPub, &sponsorTmp, &h))
+	hOut := &h
+	cRv := C.SDF_GenerateAgreementDataWithECC(cHandle(s.h), C.uint(iskIndex), C.uint(keyBits), id, C.uint(len(sponsorID)), &sponsorPub, &sponsorTmp, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return ECCPublicKey{}, ECCPublicKey{}, nil, err
 	}
@@ -107,7 +115,9 @@ func (s *Session) GenerateKeyWithECC(sponsorID []byte, responsePub, responseTmp 
 		id = (*C.uchar)(unsafe.Pointer(&sponsorID[0]))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_GenerateKeyWithECC(cHandle(s.h), id, C.uint(len(sponsorID)), cResp, cTmp, cHandle(agreement.h), &h))
+	hOut := &h
+	cRv := C.SDF_GenerateKeyWithECC(cHandle(s.h), id, C.uint(len(sponsorID)), cResp, cTmp, cHandle(agreement.h), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -125,7 +135,9 @@ func (s *Session) GenerateAgreementDataAndKeyWithECC(iskIndex, keyBits uint32, s
 	if len(responseID) > 0 {
 		rid = (*C.uchar)(unsafe.Pointer(&responseID[0]))
 	}
-	rv := RV(C.SDF_GenerateAgreementDataAndKeyWithECC(cHandle(s.h), C.uint(iskIndex), C.uint(keyBits), sid, C.uint(len(sponsorID)), rid, C.uint(len(responseID)), &sponsorPub, &sponsorTmp, &responsePub, &responseTmp, &h))
+	hOut := &h
+	cRv := C.SDF_GenerateAgreementDataAndKeyWithECC(cHandle(s.h), C.uint(iskIndex), C.uint(keyBits), sid, C.uint(len(sponsorID)), rid, C.uint(len(responseID)), &sponsorPub, &sponsorTmp, &responsePub, &responseTmp, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return ECCPublicKey{}, ECCPublicKey{}, ECCPublicKey{}, ECCPublicKey{}, nil, err
 	}
@@ -224,7 +236,7 @@ func (s *Session) ExternalDecryptECC(algID uint32, priv *ECCPrivateKey, cipher *
 	defer C.free(unsafe.Pointer(cPriv))
 	cCipher, free := eccCipherAlloc(cipher)
 	defer free()
-	return bytesOut(uint32(cipher.L), func(out *C.uchar, outLen *C.uint) C.int {
+	return bytesOut(cipher.L, func(out *C.uchar, outLen *C.uint) C.int {
 		return C.SDF_ExternalDecrypt_ECC(cHandle(s.h), C.uint(algID), cPriv, cCipher, out, outLen)
 	})
 }
@@ -259,7 +271,9 @@ func (s *Session) GenerateKeyHandleECC(algID, keyBits, kekIndex uint32, encPrivK
 		puc = (*C.uchar)(unsafe.Pointer(&encPrivKey[0]))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_GenerateKey_Handle_ECC(cHandle(s.h), C.uint(algID), C.uint(keyBits), C.uint(kekIndex), puc, &h))
+	hOut := &h
+	cRv := C.SDF_GenerateKey_Handle_ECC(cHandle(s.h), C.uint(algID), C.uint(keyBits), C.uint(kekIndex), puc, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -294,7 +308,9 @@ func (s *Session) ImportKeyWithHandleECC(handle *ECCKeyHandle, cipher *ECCCipher
 	cCipher, free := eccCipherAlloc(cipher)
 	defer free()
 	var h unsafe.Pointer
-	rv := RV(C.SDF_ImportKeyWithHandle_ECC(cHandle(s.h), cHandle(handle.h), cCipher, &h))
+	hOut := &h
+	cRv := C.SDF_ImportKeyWithHandle_ECC(cHandle(s.h), cHandle(handle.h), cCipher, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}

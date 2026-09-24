@@ -5,6 +5,7 @@ import "fmt"
 // RV 表示 SDF 返回码（SGD_RV）。
 type RV uint32
 
+// SDF 返回码常量（与规范 SDR_* 符号对应）。
 const (
 	RVOK RV = 0x00000000
 
@@ -97,7 +98,7 @@ var rvNames = map[RV]string{
 	RVEncodeError:          "SDR_ENCODE_ERROR",
 	RVDecodeError:          "SDR_DECODE_ERROR",
 	RVInvalidInstruction:   "SDR_INVALID_INSTRUCTION",
-	RVFunctionNotSupported: "SDR_FUNCITON_NOT_SUPPORTED",
+	RVFunctionNotSupported: "SDR_FUNCITON_NOT_SUPPORTED", //nolint:misspell // 厂商 SDK 原始符号名
 	RVWaitTimeout:          "SDR_WAIT_TIMEOUT",
 	RVIncompletePackage:    "SDR_INCOMPLETE_PACKAGE",
 }

@@ -52,7 +52,9 @@ func (s *Session) GenerateKeyWithIPKRSA(ipkIndex, keyBits uint32) ([]byte, *KeyH
 		buf := (*C.uchar)(C.malloc(C.size_t(size)))
 		length := C.uint(size)
 		var h unsafe.Pointer
-		rv := RV(C.SDF_GenerateKeyWithIPK_RSA(cHandle(s.h), C.uint(ipkIndex), C.uint(keyBits), buf, &length, &h))
+		hOut := &h
+		cRv := C.SDF_GenerateKeyWithIPK_RSA(cHandle(s.h), C.uint(ipkIndex), C.uint(keyBits), buf, &length, hOut)
+		rv := RV(cRv)
 		if rv == RVBufferTooSmall {
 			C.free(unsafe.Pointer(buf))
 			size = uint32(length)
@@ -77,7 +79,9 @@ func (s *Session) GenerateKeyWithEPKRSA(keyBits uint32, pub *RSAPublicKey) ([]by
 		buf := (*C.uchar)(C.malloc(C.size_t(size)))
 		length := C.uint(size)
 		var h unsafe.Pointer
-		rv := RV(C.SDF_GenerateKeyWithEPK_RSA(cHandle(s.h), C.uint(keyBits), cPub, buf, &length, &h))
+		hOut := &h
+		cRv := C.SDF_GenerateKeyWithEPK_RSA(cHandle(s.h), C.uint(keyBits), cPub, buf, &length, hOut)
+		rv := RV(cRv)
 		if rv == RVBufferTooSmall {
 			C.free(unsafe.Pointer(buf))
 			size = uint32(length)
@@ -100,7 +104,9 @@ func (s *Session) ImportKeyWithISKRSA(iskIndex uint32, key []byte) (*KeyHandle, 
 		puc = (*C.uchar)(unsafe.Pointer(&key[0]))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_ImportKeyWithISK_RSA(cHandle(s.h), C.uint(iskIndex), puc, C.uint(len(key)), &h))
+	hOut := &h
+	cRv := C.SDF_ImportKeyWithISK_RSA(cHandle(s.h), C.uint(iskIndex), puc, C.uint(len(key)), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}

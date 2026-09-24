@@ -104,10 +104,7 @@ func copyFixed(dst unsafe.Pointer, dstLen int, src []byte) {
 	if dst == nil || len(src) == 0 {
 		return
 	}
-	n := len(src)
-	if n > dstLen {
-		n = dstLen
-	}
+	n := min(len(src), dstLen)
 	C.memcpy(dst, unsafe.Pointer(&src[0]), C.size_t(n))
 }
 
@@ -126,18 +123,11 @@ func copyFixedRightAligned(dst unsafe.Pointer, dstLen int, src []byte) {
 		n = dstLen
 	}
 	offset := dstLen - n
-	C.memcpy(unsafe.Pointer(uintptr(dst)+uintptr(offset)), unsafe.Pointer(&src[0]), C.size_t(n))
+	C.memcpy(unsafe.Add(dst, offset), unsafe.Pointer(&src[0]), C.size_t(n))
 }
 
 func effectiveLen(bits uint32, maxLen int) int {
-	n := int((bits + 7) / 8)
-	if n > maxLen {
-		n = maxLen
-	}
-	if n < 0 {
-		n = 0
-	}
-	return n
+	return min(int((bits+7)/8), maxLen)
 }
 
 func trimZeros(b []byte) []byte {

@@ -14,14 +14,22 @@ import (
 	"unsafe"
 )
 
+func cgoArrayPtr[T any](elem *T) unsafe.Pointer {
+	return unsafe.Pointer(elem)
+}
+
+func cgoBytes(ptr unsafe.Pointer, length int) []byte {
+	return C.GoBytes(ptr, C.int(length))
+}
+
 func deviceInfoFromC(c *C.DEVICEINFO) *DeviceInfo {
 	if c == nil {
 		return nil
 	}
 	return &DeviceInfo{
-		IssuerName:      *(*[40]byte)(unsafe.Pointer(&c.IssuerName[0])),
-		DeviceName:      *(*[16]byte)(unsafe.Pointer(&c.DeviceName[0])),
-		DeviceSerial:    *(*[16]byte)(unsafe.Pointer(&c.DeviceSerial[0])),
+		IssuerName:      *(*[40]byte)(unsafe.Pointer(&c.IssuerName)),
+		DeviceName:      *(*[16]byte)(unsafe.Pointer(&c.DeviceName)),
+		DeviceSerial:    *(*[16]byte)(unsafe.Pointer(&c.DeviceSerial)),
 		DeviceVersion:   uint32(c.DeviceVersion),
 		StandardVersion: uint32(c.StandardVersion),
 		AsymAlgAbility:  [2]uint32{uint32(c.AsymAlgAbility[0]), uint32(c.AsymAlgAbility[1])},
@@ -39,8 +47,8 @@ func sysConfToC(g *SysConf) *C.SysConf {
 	c.timeout = C.uint(g.Timeout)
 	c.worktype = C.uint(g.WorkType)
 	c.maxcipher = C.uint(g.MaxCipher)
-	for i := 0; i < MaxCipherHosts; i++ {
-		C.memcpy(unsafe.Pointer(&c.ip[i][0]), unsafe.Pointer(&g.IP[i][0]), 16)
+	for i := range MaxCipherHosts {
+		C.memcpy(cgoArrayPtr(&c.ip[i][0]), cgoArrayPtr(&g.IP[i][0]), 16)
 		c.port[i] = C.uint(g.Port[i])
 	}
 	return c
@@ -50,8 +58,8 @@ func rsaPublicKeyFromC(c *C.RSArefPublicKey) RSAPublicKey {
 	n := effectiveLen(uint32(c.bits), SGDRSAMaxLen)
 	return RSAPublicKey{
 		Bits: uint32(c.bits),
-		M:    C.GoBytes(unsafe.Pointer(&c.m[0]), C.int(n)),
-		E:    C.GoBytes(unsafe.Pointer(&c.e[0]), C.int(n)),
+		M:    cgoBytes(unsafe.Pointer(&c.m), n),
+		E:    cgoBytes(unsafe.Pointer(&c.e), n),
 	}
 }
 
@@ -68,18 +76,18 @@ func rsaPrivateKeyFromC(c *C.RSArefPrivateKey) RSAPrivateKey {
 	pn := effectiveLen(uint32(c.bits)/2, SGDRSAMaxPLen)
 	return RSAPrivateKey{
 		Bits: uint32(c.bits),
-		M:    C.GoBytes(unsafe.Pointer(&c.m[0]), C.int(n)),
-		E:    C.GoBytes(unsafe.Pointer(&c.e[0]), C.int(n)),
-		D:    C.GoBytes(unsafe.Pointer(&c.d[0]), C.int(n)),
+		M:    cgoBytes(unsafe.Pointer(&c.m), n),
+		E:    cgoBytes(unsafe.Pointer(&c.e), n),
+		D:    cgoBytes(unsafe.Pointer(&c.d), n),
 		Prime: [2][]byte{
-			C.GoBytes(unsafe.Pointer(&c.prime[0][0]), C.int(pn)),
-			C.GoBytes(unsafe.Pointer(&c.prime[1][0]), C.int(pn)),
+			cgoBytes(unsafe.Pointer(&c.prime[0][0]), pn),
+			cgoBytes(unsafe.Pointer(&c.prime[1][0]), pn),
 		},
 		PExp: [2][]byte{
-			C.GoBytes(unsafe.Pointer(&c.pexp[0][0]), C.int(pn)),
-			C.GoBytes(unsafe.Pointer(&c.pexp[1][0]), C.int(pn)),
+			cgoBytes(unsafe.Pointer(&c.pexp[0][0]), pn),
+			cgoBytes(unsafe.Pointer(&c.pexp[1][0]), pn),
 		},
-		Coef: C.GoBytes(unsafe.Pointer(&c.coef[0]), C.int(pn)),
+		Coef: cgoBytes(unsafe.Pointer(&c.coef), pn),
 	}
 }
 
@@ -89,7 +97,7 @@ func rsaPrivateKeyToC(g *RSAPrivateKey) *C.RSArefPrivateKey {
 	copyFixed(unsafe.Pointer(&c.m[0]), SGDRSAMaxLen, g.M)
 	copyFixed(unsafe.Pointer(&c.e[0]), SGDRSAMaxLen, g.E)
 	copyFixed(unsafe.Pointer(&c.d[0]), SGDRSAMaxLen, g.D)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		copyFixed(unsafe.Pointer(&c.prime[i][0]), SGDRSAMaxPLen, g.Prime[i])
 		copyFixed(unsafe.Pointer(&c.pexp[i][0]), SGDRSAMaxPLen, g.PExp[i])
 	}
@@ -100,8 +108,8 @@ func rsaPrivateKeyToC(g *RSAPrivateKey) *C.RSArefPrivateKey {
 func eccPublicKeyFromC(c *C.ECCrefPublicKey) ECCPublicKey {
 	return ECCPublicKey{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), ECCrefMaxLen),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), ECCrefMaxLen),
+		X:    cgoBytes(unsafe.Pointer(&c.x), ECCrefMaxLen),
+		Y:    cgoBytes(unsafe.Pointer(&c.y), ECCrefMaxLen),
 	}
 }
 
@@ -116,7 +124,7 @@ func eccPublicKeyToC(g *ECCPublicKey) *C.ECCrefPublicKey {
 func eccPrivateKeyFromC(c *C.ECCrefPrivateKey) ECCPrivateKey {
 	return ECCPrivateKey{
 		Bits: uint32(c.bits),
-		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), ECCrefMaxLen),
+		K:    cgoBytes(unsafe.Pointer(&c.K), ECCrefMaxLen),
 	}
 }
 
@@ -129,8 +137,8 @@ func eccPrivateKeyToC(g *ECCPrivateKey) *C.ECCrefPrivateKey {
 
 func eccSignatureFromC(c *C.ECCSignature) ECCSignature {
 	return ECCSignature{
-		R: C.GoBytes(unsafe.Pointer(&c.r[0]), ECCrefMaxLen),
-		S: C.GoBytes(unsafe.Pointer(&c.s[0]), ECCrefMaxLen),
+		R: cgoBytes(unsafe.Pointer(&c.r), ECCrefMaxLen),
+		S: cgoBytes(unsafe.Pointer(&c.s), ECCrefMaxLen),
 	}
 }
 
@@ -157,18 +165,15 @@ func eccCipherAlloc(g *ECCCipher) (*C.ECCCipher, func()) {
 }
 
 func eccCipherFromC(c *C.ECCCipher) ECCCipher {
-	l := int(c.L)
-	if l < 0 {
-		l = 0
-	}
+	l := max(int(c.L), 0)
 	out := ECCCipher{
-		X: C.GoBytes(unsafe.Pointer(&c.x[0]), ECCrefMaxLen),
-		Y: C.GoBytes(unsafe.Pointer(&c.y[0]), ECCrefMaxLen),
+		X: cgoBytes(unsafe.Pointer(&c.x), ECCrefMaxLen),
+		Y: cgoBytes(unsafe.Pointer(&c.y), ECCrefMaxLen),
 		L: uint32(c.L),
 	}
-	copy(out.M[:], C.GoBytes(unsafe.Pointer(&c.M[0]), 32))
+	copy(out.M[:], cgoBytes(unsafe.Pointer(&c.M), 32))
 	if l > 0 {
-		out.C = C.GoBytes(unsafe.Pointer(&c.C[0]), C.int(l))
+		out.C = cgoBytes(unsafe.Pointer(&c.C), l)
 	}
 	return out
 }
@@ -176,8 +181,8 @@ func eccCipherFromC(c *C.ECCCipher) ECCCipher {
 func eccPublicKeyECDSAFromC(c *C.ECCrefPublicKey_ECDSA) ECCPublicKeyECDSA {
 	return ECCPublicKeyECDSA{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), ECCrefMaxLenECDSA),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), ECCrefMaxLenECDSA),
+		X:    cgoBytes(unsafe.Pointer(&c.x), ECCrefMaxLenECDSA),
+		Y:    cgoBytes(unsafe.Pointer(&c.y), ECCrefMaxLenECDSA),
 	}
 }
 
@@ -192,7 +197,7 @@ func eccPublicKeyECDSAToC(g *ECCPublicKeyECDSA) *C.ECCrefPublicKey_ECDSA {
 func eccPrivateKeyECDSAFromC(c *C.ECCrefPrivateKey_ECDSA) ECCPrivateKeyECDSA {
 	return ECCPrivateKeyECDSA{
 		Bits: uint32(c.bits),
-		K:    C.GoBytes(unsafe.Pointer(&c.K[0]), ECCrefMaxLenECDSA),
+		K:    cgoBytes(unsafe.Pointer(&c.K), ECCrefMaxLenECDSA),
 	}
 }
 
@@ -205,8 +210,8 @@ func eccPrivateKeyECDSAToC(g *ECCPrivateKeyECDSA) *C.ECCrefPrivateKey_ECDSA {
 
 func eccSignatureECDSAFromC(c *C.ECCSignature_ECDSA) ECCSignatureECDSA {
 	return ECCSignatureECDSA{
-		R: C.GoBytes(unsafe.Pointer(&c.r[0]), ECCrefMaxLenECDSA),
-		S: C.GoBytes(unsafe.Pointer(&c.s[0]), ECCrefMaxLenECDSA),
+		R: cgoBytes(unsafe.Pointer(&c.r), ECCrefMaxLenECDSA),
+		S: cgoBytes(unsafe.Pointer(&c.s), ECCrefMaxLenECDSA),
 	}
 }
 
@@ -220,7 +225,7 @@ func eccSignatureECDSAToC(g *ECCSignatureECDSA) *C.ECCSignature_ECDSA {
 func eccPublicKeyEDDSAFromC(c *C.ECCrefPublicKey_EDDSA) ECCPublicKeyEDDSA {
 	return ECCPublicKeyEDDSA{
 		Bits: uint32(c.bits),
-		Pub:  C.GoBytes(unsafe.Pointer(&c.pub[0]), ECCrefMaxLenEDDSA),
+		Pub:  cgoBytes(unsafe.Pointer(&c.pub), ECCrefMaxLenEDDSA),
 	}
 }
 
@@ -234,7 +239,7 @@ func eccPublicKeyEDDSAToC(g *ECCPublicKeyEDDSA) *C.ECCrefPublicKey_EDDSA {
 func eccPrivateKeyEDDSAFromC(c *C.ECCrefPrivateKey_EDDSA) ECCPrivateKeyEDDSA {
 	return ECCPrivateKeyEDDSA{
 		Bits: uint32(c.bits),
-		Pri:  C.GoBytes(unsafe.Pointer(&c.pri[0]), ECCrefMaxLenEDDSA),
+		Pri:  cgoBytes(unsafe.Pointer(&c.pri), ECCrefMaxLenEDDSA),
 	}
 }
 
@@ -247,8 +252,8 @@ func eccPrivateKeyEDDSAToC(g *ECCPrivateKeyEDDSA) *C.ECCrefPrivateKey_EDDSA {
 
 func eccSignatureEDDSAFromC(c *C.ECCSignature_EDDSA) ECCSignatureEDDSA {
 	return ECCSignatureEDDSA{
-		R: C.GoBytes(unsafe.Pointer(&c.r[0]), ECCrefMaxLenEDDSA),
-		S: C.GoBytes(unsafe.Pointer(&c.s[0]), ECCrefMaxLenEDDSA),
+		R: cgoBytes(unsafe.Pointer(&c.r), ECCrefMaxLenEDDSA),
+		S: cgoBytes(unsafe.Pointer(&c.s), ECCrefMaxLenEDDSA),
 	}
 }
 
@@ -263,10 +268,10 @@ func dsaPublicKeyFromC(c *C.DSArefPublicKey) DSAPublicKey {
 	n := effectiveLen(uint32(c.bits), DSArefMaxLen)
 	return DSAPublicKey{
 		Bits: uint32(c.bits),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), C.int(n)),
-		P:    C.GoBytes(unsafe.Pointer(&c.p[0]), C.int(n)),
-		Q:    C.GoBytes(unsafe.Pointer(&c.q[0]), C.int(n)),
-		G:    C.GoBytes(unsafe.Pointer(&c.g[0]), C.int(n)),
+		Y:    cgoBytes(unsafe.Pointer(&c.y), n),
+		P:    cgoBytes(unsafe.Pointer(&c.p), n),
+		Q:    cgoBytes(unsafe.Pointer(&c.q), n),
+		G:    cgoBytes(unsafe.Pointer(&c.g), n),
 	}
 }
 
@@ -284,10 +289,10 @@ func dsaPrivateKeyFromC(c *C.DSArefPrivateKey) DSAPrivateKey {
 	n := effectiveLen(uint32(c.bits), DSArefMaxLen)
 	return DSAPrivateKey{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), C.int(n)),
-		P:    C.GoBytes(unsafe.Pointer(&c.p[0]), C.int(n)),
-		Q:    C.GoBytes(unsafe.Pointer(&c.q[0]), C.int(n)),
-		G:    C.GoBytes(unsafe.Pointer(&c.g[0]), C.int(n)),
+		X:    cgoBytes(unsafe.Pointer(&c.x), n),
+		P:    cgoBytes(unsafe.Pointer(&c.p), n),
+		Q:    cgoBytes(unsafe.Pointer(&c.q), n),
+		G:    cgoBytes(unsafe.Pointer(&c.g), n),
 	}
 }
 
@@ -303,8 +308,8 @@ func dsaPrivateKeyToC(g *DSAPrivateKey) *C.DSArefPrivateKey {
 
 func dsaSignatureFromC(c *C.DSASignature) DSASignature {
 	return DSASignature{
-		R: C.GoBytes(unsafe.Pointer(&c.r[0]), DSArefMaxLen),
-		S: C.GoBytes(unsafe.Pointer(&c.s[0]), DSArefMaxLen),
+		R: cgoBytes(unsafe.Pointer(&c.r), DSArefMaxLen),
+		S: cgoBytes(unsafe.Pointer(&c.s), DSArefMaxLen),
 	}
 }
 
@@ -319,7 +324,7 @@ func sm9MasterPrivateKeyFromC(c *C.SM9MasterPrivateKey) SM9MasterPrivateKey {
 	n := effectiveLen(uint32(c.bits), SM9refMaxLen)
 	return SM9MasterPrivateKey{
 		Bits: uint32(c.bits),
-		S:    C.GoBytes(unsafe.Pointer(&c.s[0]), C.int(n)),
+		S:    cgoBytes(unsafe.Pointer(&c.s), n),
 	}
 }
 
@@ -334,10 +339,10 @@ func sm9SignMasterPublicKeyFromC(c *C.SM9SignMasterPublicKey) SM9SignMasterPubli
 	n := effectiveLen(uint32(c.bits), SM9refMaxLen)
 	return SM9SignMasterPublicKey{
 		Bits: uint32(c.bits),
-		XA:   C.GoBytes(unsafe.Pointer(&c.xa[0]), C.int(n)),
-		XB:   C.GoBytes(unsafe.Pointer(&c.xb[0]), C.int(n)),
-		YA:   C.GoBytes(unsafe.Pointer(&c.ya[0]), C.int(n)),
-		YB:   C.GoBytes(unsafe.Pointer(&c.yb[0]), C.int(n)),
+		XA:   cgoBytes(unsafe.Pointer(&c.xa), n),
+		XB:   cgoBytes(unsafe.Pointer(&c.xb), n),
+		YA:   cgoBytes(unsafe.Pointer(&c.ya), n),
+		YB:   cgoBytes(unsafe.Pointer(&c.yb), n),
 	}
 }
 
@@ -355,8 +360,8 @@ func sm9EncMasterPublicKeyFromC(c *C.SM9EncMasterPublicKey) SM9EncMasterPublicKe
 	n := effectiveLen(uint32(c.bits), SM9refMaxLen)
 	return SM9EncMasterPublicKey{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), C.int(n)),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), C.int(n)),
+		X:    cgoBytes(unsafe.Pointer(&c.x), n),
+		Y:    cgoBytes(unsafe.Pointer(&c.y), n),
 	}
 }
 
@@ -372,8 +377,8 @@ func sm9UserSignPrivateKeyFromC(c *C.SM9UserSignPrivateKey) SM9UserSignPrivateKe
 	n := effectiveLen(uint32(c.bits), SM9refMaxLen)
 	return SM9UserSignPrivateKey{
 		Bits: uint32(c.bits),
-		X:    C.GoBytes(unsafe.Pointer(&c.x[0]), C.int(n)),
-		Y:    C.GoBytes(unsafe.Pointer(&c.y[0]), C.int(n)),
+		X:    cgoBytes(unsafe.Pointer(&c.x), n),
+		Y:    cgoBytes(unsafe.Pointer(&c.y), n),
 	}
 }
 
@@ -389,10 +394,10 @@ func sm9UserEncPrivateKeyFromC(c *C.SM9UserEncPrivateKey) SM9UserEncPrivateKey {
 	n := effectiveLen(uint32(c.bits), SM9refMaxLen)
 	return SM9UserEncPrivateKey{
 		Bits: uint32(c.bits),
-		XA:   C.GoBytes(unsafe.Pointer(&c.xa[0]), C.int(n)),
-		XB:   C.GoBytes(unsafe.Pointer(&c.xb[0]), C.int(n)),
-		YA:   C.GoBytes(unsafe.Pointer(&c.ya[0]), C.int(n)),
-		YB:   C.GoBytes(unsafe.Pointer(&c.yb[0]), C.int(n)),
+		XA:   cgoBytes(unsafe.Pointer(&c.xa), n),
+		XB:   cgoBytes(unsafe.Pointer(&c.xb), n),
+		YA:   cgoBytes(unsafe.Pointer(&c.ya), n),
+		YB:   cgoBytes(unsafe.Pointer(&c.yb), n),
 	}
 }
 
@@ -423,28 +428,25 @@ func sm9CipherAlloc(g *SM9Cipher) (*C.SM9Cipher, func()) {
 }
 
 func sm9CipherFromC(c *C.SM9Cipher) SM9Cipher {
-	l := int(c.L)
-	if l < 0 {
-		l = 0
-	}
+	l := max(int(c.L), 0)
 	out := SM9Cipher{
 		EnType: uint32(c.enType),
-		X:      C.GoBytes(unsafe.Pointer(&c.x[0]), SM9refMaxLen),
-		Y:      C.GoBytes(unsafe.Pointer(&c.y[0]), SM9refMaxLen),
-		H:      C.GoBytes(unsafe.Pointer(&c.h[0]), SM9refMaxLen),
+		X:      cgoBytes(unsafe.Pointer(&c.x), SM9refMaxLen),
+		Y:      cgoBytes(unsafe.Pointer(&c.y), SM9refMaxLen),
+		H:      cgoBytes(unsafe.Pointer(&c.h), SM9refMaxLen),
 		L:      uint32(c.L),
 	}
 	if l > 0 {
-		out.C = C.GoBytes(unsafe.Pointer(&c.C[0]), C.int(l))
+		out.C = cgoBytes(unsafe.Pointer(&c.C), l)
 	}
 	return out
 }
 
 func sm9SignatureFromC(c *C.SM9Signature) SM9Signature {
 	return SM9Signature{
-		H: C.GoBytes(unsafe.Pointer(&c.h[0]), SM9refMaxLen),
-		X: C.GoBytes(unsafe.Pointer(&c.x[0]), SM9refMaxLen),
-		Y: C.GoBytes(unsafe.Pointer(&c.y[0]), SM9refMaxLen),
+		H: cgoBytes(unsafe.Pointer(&c.h), SM9refMaxLen),
+		X: cgoBytes(unsafe.Pointer(&c.x), SM9refMaxLen),
+		Y: cgoBytes(unsafe.Pointer(&c.y), SM9refMaxLen),
 	}
 }
 
@@ -458,8 +460,8 @@ func sm9SignatureToC(g *SM9Signature) *C.SM9Signature {
 
 func sm9KeyPackageFromC(c *C.SM9KeyPackage) SM9KeyPackage {
 	return SM9KeyPackage{
-		X: C.GoBytes(unsafe.Pointer(&c.x[0]), SM9refMaxLen),
-		Y: C.GoBytes(unsafe.Pointer(&c.y[0]), SM9refMaxLen),
+		X: cgoBytes(unsafe.Pointer(&c.x), SM9refMaxLen),
+		Y: cgoBytes(unsafe.Pointer(&c.y), SM9refMaxLen),
 	}
 }
 
@@ -476,7 +478,7 @@ func hashCtxToC(g *HashCtx) *C.uchar {
 
 func hashCtxFromC(c *[512]C.uchar) HashCtx {
 	var out HashCtx
-	copy(out[:], C.GoBytes(unsafe.Pointer(&c[0]), 512))
+	copy(out[:], cgoBytes(unsafe.Pointer(c), 512))
 	return out
 }
 

@@ -9,11 +9,11 @@ import (
 )
 
 func TestDeviceIntegration(t *testing.T) {
-	if _, err := os.Stat("cacipher.ini"); err != nil {
+	if _, err := os.Stat("../cacipher.ini"); err != nil {
 		t.Skip("cacipher.ini not found, skipping integration test")
 	}
 
-	dev, err := OpenDeviceWithConfig("cacipher.ini", nil)
+	dev, err := OpenDeviceWithConfig("../cacipher.ini", nil)
 	if err != nil {
 		t.Fatalf("OpenDeviceWithConfig: %v", err)
 	}

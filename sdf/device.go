@@ -19,7 +19,9 @@ import (
 // OpenDevice 打开密码设备（SDF_OpenDevice）。
 func OpenDevice() (*Device, error) {
 	var h unsafe.Pointer
-	rv := RV(C.SDF_OpenDevice(&h))
+	hOut := &h
+	cRv := C.SDF_OpenDevice(hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -36,7 +38,9 @@ func OpenDeviceWithConfig(iniPath string, conf *SysConf) (*Device, error) {
 		defer C.free(unsafe.Pointer(cConf))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_OpenDeviceEx(&h, cPath, cConf))
+	hOut := &h
+	cRv := C.SDF_OpenDeviceEx(hOut, cPath, cConf)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -48,7 +52,9 @@ func OpenDeviceWithAddr(addr string, port int) (*Device, error) {
 	cAddr := cString(addr)
 	defer freeCString(cAddr)
 	var h unsafe.Pointer
-	rv := RV(C.SDF_OpenDevice_EX(cAddr, C.int(port), &h))
+	hOut := &h
+	cRv := C.SDF_OpenDevice_EX(cAddr, C.int(port), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -71,7 +77,9 @@ func (d *Device) OpenSession() (*Session, error) {
 		return nil, &Error{Code: RVInArgErr}
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_OpenSession(d.h, &h))
+	hOut := &h
+	cRv := C.SDF_OpenSession(d.h, hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -157,7 +165,9 @@ func (s *Session) Echo(data []byte) ([]byte, error) {
 // GetSymmKeyHandle 获取对称密钥句柄（SDF_GetSymmKeyHandle）。
 func (s *Session) GetSymmKeyHandle(keyIndex uint32) (*KeyHandle, error) {
 	var h unsafe.Pointer
-	rv := RV(C.SDF_GetSymmKeyHandle(cHandle(s.h), C.uint(keyIndex), &h))
+	hOut := &h
+	cRv := C.SDF_GetSymmKeyHandle(cHandle(s.h), C.uint(keyIndex), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -171,7 +181,9 @@ func (s *Session) ImportKey(key []byte) (*KeyHandle, error) {
 		puc = (*C.uchar)(unsafe.Pointer(&key[0]))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_ImportKey(cHandle(s.h), puc, C.uint(len(key)), &h))
+	hOut := &h
+	cRv := C.SDF_ImportKey(cHandle(s.h), puc, C.uint(len(key)), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}
@@ -195,7 +207,9 @@ func (s *Session) GenerateKeyWithKEK(keyBits, algID, kekIndex uint32) (key []byt
 		buf := (*C.uchar)(C.malloc(C.size_t(size)))
 		length := C.uint(size)
 		var h unsafe.Pointer
-		rv := RV(C.SDF_GenerateKeyWithKEK(cHandle(s.h), C.uint(keyBits), C.uint(algID), C.uint(kekIndex), buf, &length, &h))
+		hOut := &h
+		cRv := C.SDF_GenerateKeyWithKEK(cHandle(s.h), C.uint(keyBits), C.uint(algID), C.uint(kekIndex), buf, &length, hOut)
+		rv := RV(cRv)
 		if rv == RVBufferTooSmall {
 			C.free(unsafe.Pointer(buf))
 			size = uint32(length)
@@ -218,7 +232,9 @@ func (s *Session) ImportKeyWithKEK(algID, kekIndex uint32, key []byte) (*KeyHand
 		puc = (*C.uchar)(unsafe.Pointer(&key[0]))
 	}
 	var h unsafe.Pointer
-	rv := RV(C.SDF_ImportKeyWithKEK(cHandle(s.h), C.uint(algID), C.uint(kekIndex), puc, C.uint(len(key)), &h))
+	hOut := &h
+	cRv := C.SDF_ImportKeyWithKEK(cHandle(s.h), C.uint(algID), C.uint(kekIndex), puc, C.uint(len(key)), hOut)
+	rv := RV(cRv)
 	if err := Err(rv); err != nil {
 		return nil, err
 	}

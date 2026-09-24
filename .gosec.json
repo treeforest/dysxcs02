@@ -1,0 +1,11 @@
+{
+  "global": {
+    "audit": "false"
+  },
+  "exclude-rules": [
+    {
+      "path": ".*",
+      "rules": ["G115"]
+    }
+  ]
+}
